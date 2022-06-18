@@ -1,8 +1,8 @@
-#A simple restAPI backend
+# A simple restAPI backend
 that runs on ExpressJS and provides a simple CRUD interface for Mongodb.
 This project is unfinished.
 
-##Install
+## Install
 
 npm install
 

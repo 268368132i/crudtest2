@@ -17,11 +17,11 @@ export default class UserRouter extends GenericRouter {
             }
         });
     }
-    setGet(){
+    /*setGet(){
         this.router.get("/session",async(req,res)=>{
             console.log("Sending user session");
             console.dir(req);
             res.json({user: req.user, session: req.session});
         });
-    }
+    }*/
 }

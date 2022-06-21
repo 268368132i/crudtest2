@@ -37,6 +37,7 @@ async function start(){
 
     app.use("/auth", authRouter.getRouter());
     app.use("/auditories", audRt.getRouter());
+    app.use("/location", audRt.getRouter());
     app.use("/items", itemRt.getRouter());
     app.use("/user", userRt.getRouter());
     app.listen(PORT, ()=>{});

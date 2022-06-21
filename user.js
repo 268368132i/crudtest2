@@ -5,6 +5,7 @@ import express from "express";
 import GenericController from "./controllers/GenericController.js";
 import MongoStore from "connect-mongo";
 import session  from "express-session";
+import { ObjectId } from "mongodb";
 
 export class Authentication {
     constructor(connection) {
@@ -52,7 +53,7 @@ export class Authentication {
                 console.log("Deserializing...");
                 const coll = await connection.db(dbName).collection(colName);
                 console.log("User:", suser);
-                const user = await coll.findOne({ _id: suser._id }, {
+                const user = await coll.findOne({ _id: new ObjectId(suser._id) }, {
                         projection: {
                             username: 1,
                             firstName: 1,
@@ -64,6 +65,7 @@ export class Authentication {
                 }
                 done(null, user);
             } catch (err) {
+                console.log(`Error deserializing user`, suser);
                 done(err, null);
                //done(null, suser);
             }

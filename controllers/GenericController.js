@@ -36,10 +36,11 @@ export default class GenericController{
         }
         console.log("Trying to store an item ");
         console.log(String(item));
-        await this.coll.insertOne(item);
+        const result = await this.coll.insertOne(item);
         return ({
             "result": "ok",
             "message": "Item stored successefully",
+            "_id": result.insertedId
         });
     }
 

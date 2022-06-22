@@ -47,8 +47,8 @@ export default class GenericRouter {
     setPost(){
         this.router.post("/",async(req, res)=>{
             try {
-                await this.ctl.new(req.body);
-                res.status(201).send();
+                const result = await this.ctl.new(req.body);
+                res.status(201).json(result);
             } catch (err) {
                 console.log(String(err));
                 res.status(500).send();

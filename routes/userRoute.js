@@ -6,7 +6,7 @@ export default class UserRouter extends GenericRouter {
 
     }
     setPost(){
-        this.router.post("/new", async(req, res)=>{
+        this.router.post("/", async(req, res)=>{
             try {
                 const result = await this.ctl.new(req.body);
                 console.log(`Result ${result}`);

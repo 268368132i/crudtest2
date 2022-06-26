@@ -17,6 +17,7 @@ export class Authentication {
         this.sessionStore = this.getStore();
         const getUser = this.getUserByUserName;
         this.localStrategy = new LocalStrategy(
+            {session: true},
             async function verify(uname, pwd, cb) {
                 try {
                     const coll = await connection.db(dbName).collection(colName);
@@ -82,6 +83,7 @@ export class Authentication {
         }));
         app.use(passport.initialize());
         app.use(passport.session());
+        app.use(passport.authenticate('session'))
     }
     getStore() {
         try {

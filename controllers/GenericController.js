@@ -36,7 +36,7 @@ export default class GenericController{
         }
         console.log("Trying to store an item ");
         console.log(String(item));
-        const result = await this.coll.insertOne(item);
+        const result = await this.coll.insertOne(this.parse(item));
         return ({
             "result": "ok",
             "message": "Item stored successefully",
@@ -54,7 +54,7 @@ export default class GenericController{
         console.log("Ctl update:", item);
         await this.coll.updateOne(
             {"_id" : _oid(id)},
-             {$set:item});
+             {$set:this.parse(item)});
     }
 
     async del(id){
@@ -62,5 +62,10 @@ export default class GenericController{
             await this.setCol();
         }
         await this.coll.deleteOne({_id : _oid(id)});
+    }
+
+    parse(item){
+        console.log('not parsing')
+        return item
     }
 }

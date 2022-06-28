@@ -6,6 +6,7 @@ import GenericRouter from "./routes/genericRoute.js";
 import { Authentication, UserController } from "./user.js";
 import UserRouter from "./routes/userRoute.js";
 import { AuthRouter } from "./routes/authentication.js";
+import CollectionsAccessController from "./controllers/CollectionsAccessController.js";
 
 
 const app = express();
@@ -31,6 +32,14 @@ async function start(){
     const userCtl = new UserController(client);
     const userRt = new UserRouter(userCtl);
 
+    const grpCtl = new GenericController('groups', client)
+    const grpRt = new GenericRouter(grpCtl)
+
+
+
+    const colAccessCtl = new CollectionsAccessController(client)
+    const colAccessRt = new GenericRouter(colAccessCtl)
+
     const userAuth = new Authentication(client);
     userAuth.initSession(app);
     const authRouter = new AuthRouter(userAuth);
@@ -40,6 +49,8 @@ async function start(){
     app.use("/location", audRt.getRouter());
     app.use("/items", itemRt.getRouter());
     app.use("/user", userRt.getRouter());
+    app.use('/group', grpRt.getRouter())
+    app.use('/coll_access', colAccessRt.getRouter())
     app.listen(PORT, ()=>{});
 }
 

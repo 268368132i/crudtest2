@@ -1,9 +1,11 @@
 import {ObjectId} from "mongodb";
+import UnauthorizedException from "../lib/UnauthorizedException.js";
 
-export default class GenericController{
-    constructor (modelName, connection){
+export default class AuthorizedGenericController{
+    constructor (modelName, connection, defaultPermissions={read: true, modify: false}){
         this.modelName = modelName;
         this.conn = connection;
+        this.defaultPermissions = defaultPermissions
     }
     
     async setCol(){
@@ -11,39 +13,53 @@ export default class GenericController{
             this.coll = await this.conn.db("inventory").collection(this.modelName);
         }
         if (!this.authColl) {
-            this.authColl = await this.conn.db("collections_access").collection(this.modelName);
+            this.authColl = await this.conn.db("inventory").collection('collections_access');
         }
     }
 
     async collectionAssertPermission(origin, permission) {
         let filter
-        const collectionPermissions = await this.authColl.findOne({ 'collection': this.modelName })
-        if (collectionPermissions.all.indexOf(permission) >= 0) {
+        const query = [ 
+            {
+                $match: {
+                    'collection': this.modelName
+                }
+            },
+         ]
+        const collectionPermissions = await this.authColl.aggregate(query).toArray()
+        if (collectionPermissions.length === 0){
+            return 
+        }
+        const perms = collectionPermissions[0]
+        console.log('Permissions: ', perms/*, ' length: ', collectionPermissions.length*/)
+        if (perms.all[permission]) {
             return true
         }
 
         //find group permissions
         if (!(origin && origin.groups)) return false
-        const index = origin.groups.indexOf(collectionPermissions.group._id)
+        const index = origin.groups.indexOf(perms.group._id)
         if (index === -1) {
-            return false
+            return this.defaultPermissions[permission]
         }
-        return collectionPermissions.group.permissions.indexOf(permission) > -1
+        return perms.group[permission]
     }
 
     async list(origin = false){
-        if (!(this.coll && authColl)){
+        if (!(this.coll && this.authColl)){
             await this.setCol();
         }
-        if (!this.collectionAssertPermission(origin, 'read')) {
-            throw new Error('Access denied')
+        const assert = await this.collectionAssertPermission(origin, 'read')
+        console.log('Got permissions: ', assert)
+        if (!assert) {
+            throw new UnauthorizedException('Access denied')
         }
             const items = await this.coll.find({}).toArray();
             console.log(items);
             return items;
     }
     async getOne(id) {
-        if (!(this.coll && authColl)) {
+        if (!(this.coll && this.authColl)) {
             await this.setCol();
         }
         console.log("GetOne id: ", id)
@@ -55,8 +71,13 @@ export default class GenericController{
     }
 
     async new(item){
-        if (!(this.coll && authColl)) {
+        if (!(this.coll && this.authColl)) {
             await this.setCol();
+        }
+        const assert = await this.collectionAssertPermission(origin, 'modify')
+        console.log('Got permissions: ', assert)
+        if (!assert) {
+            throw new UnauthorizedException('Access denied')
         }
         console.log("Trying to store an item ");
 
@@ -74,9 +95,16 @@ export default class GenericController{
     }
 
     async update(id, item){
-        if (!(this.coll && authColl)) {
+        if (!(this.coll && this.authColl)) {
             await this.setCol();
         }
+
+        const assert = await this.collectionAssertPermission(origin, 'modify')
+        console.log('Got permissions: ', assert)
+        if (!assert) {
+            throw new UnauthorizedException('Access denied')
+        }
+
         if (item._id) {
             delete item._id;
         }
@@ -93,8 +121,13 @@ export default class GenericController{
     }
 
     async del(id){
-        if (!(this.coll && authColl)) {
+        if (!(this.coll && this.authColl)) {
             await this.setCol();
+        }
+        const assert = await this.collectionAssertPermission(origin, 'read')
+        console.log('Got permissions: ', assert)
+        if (!assert) {
+            throw new UnauthorizedException('Access denied')
         }
         await this.coll.deleteOne({_id : ObjectId(id)});
     }

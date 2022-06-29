@@ -7,6 +7,7 @@ import { Authentication, UserController } from "./user.js";
 import UserRouter from "./routes/userRoute.js";
 import { AuthRouter } from "./routes/authentication.js";
 import CollectionsAccessController from "./controllers/CollectionsAccessController.js";
+import AuthorizedGenericController from "./controllers/AuthorizedGenericController.js";
 
 
 const app = express();
@@ -26,7 +27,8 @@ async function start(){
     const audCtl = new GenericController("auditories", client);
     const audRt = new GenericRouter(audCtl);
 
-    const itemCtl = new GenericController("items", client);
+    //const itemCtl = new GenericController("items", client);
+    const itemCtl = new AuthorizedGenericController("items", client);
     const itemRt = new GenericRouter(itemCtl);
 
     const userCtl = new UserController(client);

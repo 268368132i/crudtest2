@@ -27,8 +27,8 @@ export default class GenericRouter {
                 console.log("Router get:", items);
                 res.json(items);
             } catch (err){
-                console.log(String(err));
-                res.status(500).send("");
+                console.log(err.status);
+                res.status(err.status || 500).send(err.message || "");
             }
         });
 

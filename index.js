@@ -8,6 +8,7 @@ import UserRouter from "./routes/userRoute.js";
 import { AuthRouter } from "./routes/authentication.js";
 import CollectionsAccessController from "./controllers/CollectionsAccessController.js";
 import AuthorizedGenericController from "./controllers/AuthorizedGenericController.js";
+import initializeAuthentication from "./lib/initializeAuthentication.js";
 
 
 const app = express();
@@ -42,11 +43,14 @@ async function start(){
     const colAccessCtl = new CollectionsAccessController(client)
     const colAccessRt = new GenericRouter(colAccessCtl)
 
-    const userAuth = new Authentication(client);
-    userAuth.initSession(app);
-    const authRouter = new AuthRouter(userAuth);
+    const userAuth = new Authentication(client,app);
+    //userAuth.initSession(app);
+    //const authRouter = new AuthRouter(userAuth, app);
+    initializeAuthentication(userAuth, app)
 
-    app.use("/auth", authRouter.getRouter());
+    //app.set('trust proxy, 1')
+
+    //app.use("/auth", authRouter.getRouter());
     app.use("/auditories", audRt.getRouter());
     app.use("/location", audRt.getRouter());
     app.use("/items", itemRt.getRouter());

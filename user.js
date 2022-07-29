@@ -2,32 +2,63 @@ import passport from "passport";
 import LocalStrategy from "passport-local";
 import crypto from "crypto";
 import express from "express";
-import GenericController from "./controllers/GenericController.js";
+import AuthorizedGenericController from "./controllers/AuthorizedGenericController.js";
 import MongoStore from "connect-mongo";
 import session  from "express-session";
 import { ObjectId } from "mongodb";
 
 export class Authentication {
-    constructor(connection) {
+    constructor(connection, app, secret = "erhG0t") {
         this.conn = connection;
         this.dbName = "inventory";
         const dbName = this.dbName;
         this.colName = "user";
         const colName = this.colName;
         this.sessionStore = this.getStore();
+
+
+        app.use(session({
+            store: this.sessionStore,
+            secret: secret,
+            resave: true,
+            saveUninitialized: true
+        }));
+
+
         const getUser = this.getUserByUserName;
         this.localStrategy = new LocalStrategy(
             {session: true},
             async function verify(uname, pwd, cb) {
                 try {
                     const coll = await connection.db(dbName).collection(colName);
-                    const user  = await coll.findOne({username : uname},{
+                    const query = [
+                        {
+                            $match: {
+                                username: uname
+                            }
+                        },
+                        {
+                            $limit: 1
+                        },
+                        {
+                            $lookup: {
+                                from: 'groups',
+                                localField: 'groups._id',
+                                foreignField: '_id',
+                                as: 'groups'
+                            }
+                        }
+                    ]
+                    /* const user  = await coll.findOne({username : uname},{
                         projection:{
                         }
-                    });
+                    }); */
+                    let user = await coll.aggregate(query).toArray()
+                    console.log('Got user: ', user)
                     if (!user) {
                         throw new Error("Invalid user");
                     }
+                    user = user[0]
                     if (cmpHashPwd(user.salt, user.hash, pwd)) {
                         console.log(`User ${user.firstName} ${user.lastName} authenticated`);
                         cb(null, user);
@@ -41,13 +72,15 @@ export class Authentication {
         });
         passport.use(this.localStrategy);
         passport.serializeUser(function serializer(user, done){
-            console.log("Serializing...");
-            done(null, {
+            console.log("Serializing user:", user);
+            const suser = {
                 _id: user._id,
                 username: user.username,
                 firstName: user.firstName,
                 lastName: user.lastName,
-            });
+                groups: user.groups,
+            }
+            done(null, suser)
         });
         passport.deserializeUser(async function deserializer(suser, done) {
             try {
@@ -59,6 +92,7 @@ export class Authentication {
                             username: 1,
                             firstName: 1,
                             lastName: 1,
+                            groups: 1,
                         }
                     });
                 if (!user) {
@@ -71,6 +105,10 @@ export class Authentication {
                //done(null, suser);
             }
         })
+
+        app.use(passport.initialize());
+        app.use(passport.session());
+        app.use(passport.authenticate('session'))
 
     }
 
@@ -110,10 +148,14 @@ export class Authentication {
         console.log(`Looking for ${userName}`);
         return this.coll.findOne({username : userName},{salt: 1, hash: 1});
     }
+
+    async getCurrentSession(origin) {
+        return origin
+    }
     
 }
 
-export class UserController extends GenericController{
+export class UserController extends AuthorizedGenericController{
     constructor (conn){
         super("user", conn);       
     }
@@ -121,16 +163,57 @@ export class UserController extends GenericController{
         if (!this.coll) {
             await this.setCol();
         }
+        user = parseGroups(user)
         const [salt, hash] = genHash(user.password);
         const result = await this.coll.insertOne({
             username: user.username,
             salt: salt,
             hash:hash,
             lastName: user.lastName,
-            firstName: user.firstName
+            firstName: user.firstName,
+            groups: user.groups || []
         });
         return result;
     }
+
+    async userGroups(origin = false, context) {
+        if (!(this.coll && this.authColl)) {
+            await this.setCol();
+        }
+        const assert = await this.collectionAssertPermission(origin, 'read')
+        const query = [
+            {
+                $match: {
+                    '_id': new ObjectId(origin._id)
+                }
+            },
+            {
+                $lookup: {
+                    from: 'groups',
+                    localField: 'groups._id',
+                    foreignField: '_id',
+                    as: 'groups'
+                }
+            },
+            {
+                $project: {
+                    groups: 1
+                }
+            }
+        ]
+        console.log('Assert get groups: ', assert)
+        const groups = await this.coll.aggregate(query).toArray()
+        console.log('User groups: ', groups)
+        return groups
+    }
+
+    async update(id, user, origin) {
+        console.log('User before parse: ', user)
+        user = this.parseGroups(user)
+        console.log('User after parse: ', user)
+        await super.update(id, user, origin)
+    }
+
     async list(){
         if (!this.coll) {
             await this.setCol();
@@ -141,6 +224,23 @@ export class UserController extends GenericController{
         }).toArray();
         console.log("got with projection:", items);
         return items;
+    }
+
+    //Convert groups hex ids to ObjectId
+    parseGroups(user) {
+        console.log('Groups:', typeof  user.groups)
+        if (!user.groups) {
+            user.groups = []
+            return user
+        }
+        const newGroups = user.groups.map((group)=>{
+
+            group._id = new ObjectId(group._id)
+            console.log('Parsed group: ', group)
+            return group
+        })
+        user.groups=newGroups
+        return user
     }
 }
 

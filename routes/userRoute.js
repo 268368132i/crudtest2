@@ -6,7 +6,7 @@ export default class UserRouter extends GenericRouter {
 
     }
     setPost(){
-        this.router.post("/", async(req, res)=>{
+        this.router.post("/", async (req, res)=>{
             try {
                 const result = await this.ctl.new(req.body);
                 console.log(`Result ${result}`);
@@ -16,6 +16,19 @@ export default class UserRouter extends GenericRouter {
                 res.status(500).send();
             }
         });
+    }
+    setGet() {
+        this.router.get('/groups', async (req, res) => {
+            try {
+                res.json(await this.ctl.userGroups(req.session?.passport?.user))
+            } catch (err) {
+                console.log(String(err))
+                res.status(500).json({
+                    message: String(err)
+                })
+            }
+        })
+        super.setGet()
     }
     /*setGet(){
         this.router.get("/session",async(req,res)=>{

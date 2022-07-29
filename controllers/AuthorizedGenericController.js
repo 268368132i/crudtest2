@@ -28,20 +28,28 @@ export default class AuthorizedGenericController{
          ]
         const collectionPermissions = await this.authColl.aggregate(query).toArray()
         if (collectionPermissions.length === 0){
-            return 
+            console.log(`No permissions stored for '${this.modelName}'`)
+            return false
         }
         const perms = collectionPermissions[0]
         console.log('Permissions: ', perms/*, ' length: ', collectionPermissions.length*/)
-        if (perms.all[permission]) {
+        if (perms.all && perms.all[permission]) {
             return true
         }
 
         //find group permissions
+        console.log('Request originated from: ', origin, 'groups: ', origin.groups)
         if (!(origin && origin.groups)) return false
-        const index = origin.groups.indexOf(perms.group._id)
+        console.log('User groups: ', origin.groups, '; perms group id: ', perms.group._id)
+        // const index = origin.groups.indexOf(String(perms.group._id))
+        const index = origin.groups.findIndex((group => {
+            return group._id === String(perms.group._id)
+        }))
         if (index === -1) {
+            console.log('User group not found')
             return this.defaultPermissions[permission]
         }
+        console.log('Group permissions: ', perms.group)
         return perms.group[permission]
     }
 
@@ -51,6 +59,8 @@ export default class AuthorizedGenericController{
         }
         const assert = await this.collectionAssertPermission(origin, 'read')
         console.log('Got permissions: ', assert)
+        const query = {}
+        if (origin)
         if (!assert) {
             throw new UnauthorizedException('Access denied')
         }
@@ -70,7 +80,7 @@ export default class AuthorizedGenericController{
 
     }
 
-    async new(item){
+    async new(item, origin = false){
         if (!(this.coll && this.authColl)) {
             await this.setCol();
         }
@@ -79,7 +89,12 @@ export default class AuthorizedGenericController{
         if (!assert) {
             throw new UnauthorizedException('Access denied')
         }
-        console.log("Trying to store an item ");
+        console.log("CREATE: Trying to store an item ");
+
+        //Converting user's id
+        if (origin && origin._id) {
+            item.owner = new ObjectId(origin._id)
+        }
 
         //Converting group's _id
         if(item.group && item.group._id){
@@ -94,14 +109,15 @@ export default class AuthorizedGenericController{
         });
     }
 
-    async update(id, item){
+    async update(id, item, origin=false){
         if (!(this.coll && this.authColl)) {
             await this.setCol();
         }
 
         const assert = await this.collectionAssertPermission(origin, 'modify')
-        console.log('Got permissions: ', assert)
+        console.log('UPDAE: Got permissions: ', assert)
         if (!assert) {
+            console.log('Throwing UnauthorizedEXception')
             throw new UnauthorizedException('Access denied')
         }
 
@@ -120,12 +136,12 @@ export default class AuthorizedGenericController{
              {$set:item});
     }
 
-    async del(id){
+    async delete(id, origin=false){
         if (!(this.coll && this.authColl)) {
             await this.setCol();
         }
         const assert = await this.collectionAssertPermission(origin, 'read')
-        console.log('Got permissions: ', assert)
+        console.log('DELETE: Got permissions: ', assert)
         if (!assert) {
             throw new UnauthorizedException('Access denied')
         }

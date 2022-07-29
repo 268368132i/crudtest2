@@ -22,24 +22,25 @@ export default class GenericRouter {
 
     setGet(){
         this.router.get("/", async (req, res) => {
+            console.log('Listng...')
             try {
-                const items = await this.ctl.list();
-                console.log("Router get:", items);
+                const items = await this.ctl.list(req.session?.passport?.user);
+                //console.log("Router get:", items);
                 res.json(items);
             } catch (err){
-                console.log(err.status);
+                console.log(err.status || String(err));
                 res.status(err.status || 500).send(err.message || "");
             }
         });
 
         this.router.get("/:id", async (req, res) => {
             try {
-                const items = await this.ctl.getOne(req.params.id);
+                const items = await this.ctl.getOne(req.params.id, req.session?.passport?.user);
                 console.log("Router getOne:", items);
                 res.json(items);
             } catch (err){
                 console.log(String(err));
-                res.status(500).send("");
+                res.status(err.status || 500).send(err.message || "");
             }
         });
     }
@@ -47,11 +48,11 @@ export default class GenericRouter {
     setPost(){
         this.router.post("/",async(req, res)=>{
             try {
-                const result = await this.ctl.new(req.body);
+                const result = await this.ctl.new(req.body, req.session?.passport?.user);
                 res.status(201).json(result);
             } catch (err) {
                 console.log(String(err));
-                res.status(500).send();
+                res.status(err.status || 500).send(err.message || "");
             }
         });
     }
@@ -59,23 +60,25 @@ export default class GenericRouter {
     setDelete(){
         this.router.delete("/:id", async(req, res)=>{
             try {
-                await this.ctl.del(req.params.id);
+                await this.ctl.del(req.params.id, req.session, req.session?.passport?.user);
                 res.status(200).send();
             } catch (err){
                 console.log(String(err));
-                res.status(500).send();
+                res.status(err.status || 500).send(err.message || "");
             }
         });
     }
 
     setPatch(){
         this.router.patch("/:id",async(req, res)=>{
+            console.log('Executing PATCH')
             try {
-                await this.ctl.update(req.params.id,req.body);
+                console.log('Sending data to the controller')
+                await this.ctl.update(req.params.id,req.body, req.session?.passport?.user);
                 res.status(201).send();
             } catch (err) {
-                console.log(String(err));
-                res.status(500).send();
+                console.log('Error in PATCH: ', String(err));
+                res.status(err.status || 500).send(err.message || "");
             }
         });
     }

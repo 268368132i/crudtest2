@@ -36,9 +36,7 @@ export const controller = {
     },
 
     putItem : async function (item){
-        try {
-            
-        }
+
     },
 
     deleteItem : async function (item){
